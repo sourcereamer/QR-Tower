@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html>
+<canvas id="myCanvas" width="600" height="800" style="background:black"></canvas>
+<script>
+    let canvas = document.getElementById("myCanvas"); // холст
+    let context = canvas.getContext("2d");
+    context.font = 'bold 30px arial';
+    // объявление переменных и объектов
+    let scrollCounter, cameraY, current, mode, xSpeed;
+    let ySpeed = 5;
+    let height = 28;
+    let platforms = [];
+    platforms[0] = {
+        x: 200,
+        y: 0,
+        width: 200
+    };
+    let block = {
+        x: 0,
+        width: 0
+    };
+
+    // функция создания новой платформы после падения предыдущей
+    function newPl() {
+        platforms[current] = {
+            x: 0,
+            y: (current + 10) * height,
+            width: platforms[current - 1].width
+        };
+    }
+
+    function gameOver() {
+        mode = 'gameOver';
+        context.fillText('Game over!', 170, 300);
+    }
+
+    // главный цикл игры
+    function animate() {
+        if (mode != 'gameOver') { // если игра запущена
+            context.clearRect(0, 0, canvas.width, canvas.height);
+            context.fillText('Score: ' + (current - 1).toString(), 190, 50);
+            // рисуем платформы
+            for (let n = 0; n < platforms.length; n++) {
+                let box = platforms[n];
+                context.fillRect(box.x, 600 - box.y + cameraY, box.width, height);
+            }
+            context.fillStyle = 'white';
+            // рисуем обломки платформ
+            context.fillRect(block.x, 600 - block.y + cameraY, block.width, height);
+
+            // если блок ударяется о стену, то меняет направление по оси Х
+            if (mode == 'bounce') { // режим отскока от стен
+                platforms[current].x = platforms[current].x + xSpeed;
+                if (xSpeed > 0 && platforms[current].x + platforms[current].width > canvas.width)
+                    xSpeed = -xSpeed;
+                if (xSpeed < 0 && platforms[current].x < 0)
+                    xSpeed = -xSpeed;
+            }
+
+            if (mode == 'fall') { // режим падения
+                platforms[current].y = platforms[current].y - ySpeed; // перемещение текущей платформы по оси У
+                // если платформа приземляется поверх предыдущей
+                if (platforms[current].y == platforms[current - 1].y + height) {
+                    mode = 'bounce'; // меняем режим игры на отскок
+                    // вычисляем разницу текущей и предыдущей платформ
+                    let difference = platforms[current].x - platforms[current - 1].x;
+                    // если разница >= текущей платформы, игра окончена
+                    if (Math.abs(difference) >= platforms[current].width) {
+                        gameOver();
+                    }
+                    // обновляем обломки
+                    block = {
+                        y: platforms[current].y,
+                        width: difference
+                    };
+                    // определяем, обломок слева или справа
+                    if (platforms[current].x > platforms[current - 1].x) {
+                        platforms[current].width = platforms[current].width - difference;
+                        block.x = platforms[current].x + platforms[current].width;
+                    } else {
+                        block.x = platforms[current].x - difference;
+                        platforms[current].width = platforms[current].width + difference;
+                        platforms[current].x = platforms[current - 1].x;
+                    }
+                    // меняем скорость движения платформы
+                    if (xSpeed > 0)
+                        xSpeed++;
+                    else
+                        xSpeed--;
+                    // создаем новую платформу
+                    current++;
+                    scrollCounter = height;
+                    newPl();
+                }
+            }
+            // анимация обломков - они продолжат падать, пока снова не обновятся
+            block.y = block.y - ySpeed;
+            if (scrollCounter) { // определяется позиция камеры (обновляется - двигается вверх)
+                cameraY++;
+                scrollCounter--;
+            }
+        }
+        window.requestAnimationFrame(animate); // обновление кадров
+    }
+
+    // функция, которая переназначает начальные значения переменных в начале новой игры
+    function restart() {
+        platforms.splice(1, platforms.length - 1);
+        mode = 'bounce';
+        cameraY = 0;
+        scrollCounter = 0;
+        xSpeed = 2;
+        current = 1;
+        newPl();
+        block.y = 0;
+    }
+
+    // обработчик щелчка (мыши или касания)
+    canvas.onpointerdown = function() {
+        if (mode == 'gameOver') // если игра окончена, рестарт
+            restart();
+        else {
+            if (mode == 'bounce') // если игра в режиме отскока, переключается на падение
+                mode = 'fall';
+        }
+    };
+
+    restart(); // новая игра
+    animate(); // запуск анимации
+</script>
+</html>
